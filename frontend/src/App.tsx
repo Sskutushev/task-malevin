@@ -5,6 +5,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { workLogsApi } from "./api/workLogsApi";
 import { workTypesApi } from "./api/workTypesApi";
+import { ApiClientError } from "./api/client";
 
 const formSchema = z.object({
   date: z.string().min(1),
@@ -20,6 +21,11 @@ export function App(): JSX.Element {
   const qc = useQueryClient();
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [groupFilter, setGroupFilter] = useState("");
+  const [noteModal, setNoteModal] = useState<null | {
+    title: string;
+    note: string;
+  }>(null);
 
   const logsQuery = useQuery({
     queryKey: ["work-logs", dateFrom, dateTo],
@@ -27,6 +33,7 @@ export function App(): JSX.Element {
       workLogsApi.getAll({
         dateFrom,
         dateTo,
+        workTypeGroup: groupFilter,
         sortBy: "date",
         sortOrder: "desc",
       }),
@@ -63,6 +70,31 @@ export function App(): JSX.Element {
     [form, workTypesQuery.data],
   );
 
+  const groups = useMemo(
+    () =>
+      Array.from(new Set((workTypesQuery.data ?? []).map((x) => x.groupName))),
+    [workTypesQuery.data],
+  );
+
+  const groupedWorkTypes = useMemo(() => {
+    const map = new Map<string, typeof workTypesQuery.data>();
+    for (const type of workTypesQuery.data ?? []) {
+      const list = map.get(type.groupName) ?? [];
+      list.push(type);
+      map.set(type.groupName, list);
+    }
+    return map;
+  }, [workTypesQuery.data]);
+
+  const createError = useMemo(() => {
+    if (!createMutation.isError) return "";
+    const error = createMutation.error;
+    if (error instanceof ApiClientError && error.details) {
+      return `${error.message}: ${JSON.stringify(error.details)}`;
+    }
+    return (error as Error).message;
+  }, [createMutation.error, createMutation.isError]);
+
   const onSubmit = form.handleSubmit(async (values) => {
     await createMutation.mutateAsync({
       ...values,
@@ -87,28 +119,39 @@ export function App(): JSX.Element {
           <input className="input" type="date" {...form.register("date")} />
           <select className="select" {...form.register("workTypeId")}>
             <option value="">Выберите вид работ</option>
-            {workTypesQuery.data?.map((type) => (
-              <option key={type.id} value={type.id}>
-                {type.name} ({type.unit})
-              </option>
-            ))}
+            {Array.from(groupedWorkTypes.entries()).map(
+              ([groupName, types]) => (
+                <optgroup key={groupName} label={groupName}>
+                  {types?.map((type) => (
+                    <option key={type.id} value={type.id}>
+                      {type.name} ({type.unit})
+                    </option>
+                  ))}
+                </optgroup>
+              ),
+            )}
           </select>
           <input
             className="input"
             type="number"
             step="0.01"
-            {...form.register("volume")}
+            {...form.register("volume", { valueAsNumber: true })}
+            placeholder={
+              selectedWorkType?.quantityHint ??
+              "Введите объем выполненных работ"
+            }
           />
           <input
             className="input"
             placeholder="Исполнитель"
             {...form.register("executorName")}
           />
-          <input
-            className="input"
+          <textarea
+            className="input notes-input"
             placeholder="Примечание"
             {...form.register("notes")}
             style={{ gridColumn: "1 / span 3" }}
+            rows={3}
           />
           <button
             className="btn btn-primary"
@@ -118,6 +161,9 @@ export function App(): JSX.Element {
             Добавить
           </button>
         </form>
+        {createError ? (
+          <p style={{ color: "#b91c1c", marginTop: 8 }}>{createError}</p>
+        ) : null}
       </section>
 
       <section className="card">
@@ -135,7 +181,18 @@ export function App(): JSX.Element {
             value={dateTo}
             onChange={(e) => setDateTo(e.target.value)}
           />
-          <div />
+          <select
+            className="select"
+            value={groupFilter}
+            onChange={(e) => setGroupFilter(e.target.value)}
+          >
+            <option value="">Все группы работ</option>
+            {groups.map((group) => (
+              <option key={group} value={group}>
+                {group}
+              </option>
+            ))}
+          </select>
           <div />
         </div>
 
@@ -149,6 +206,7 @@ export function App(): JSX.Element {
                 <th>Вид работ</th>
                 <th>Объем</th>
                 <th>Исполнитель</th>
+                <th>Примечание</th>
                 <th />
               </tr>
             </thead>
@@ -163,6 +221,19 @@ export function App(): JSX.Element {
                   <td>{item.executorName}</td>
                   <td>
                     <button
+                      className="btn btn-secondary"
+                      onClick={() =>
+                        setNoteModal({
+                          title: `${item.workTypeName} - ${item.date.slice(0, 10)}`,
+                          note: item.notes?.trim() || "Примечание отсутствует",
+                        })
+                      }
+                    >
+                      Примечание
+                    </button>
+                  </td>
+                  <td>
+                    <button
                       className="btn btn-danger"
                       onClick={() => deleteMutation.mutate(item.id)}
                     >
@@ -175,6 +246,21 @@ export function App(): JSX.Element {
           </table>
         )}
       </section>
+
+      {noteModal ? (
+        <div className="modal-backdrop" onClick={() => setNoteModal(null)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <h3>{noteModal.title}</h3>
+            <p>{noteModal.note}</p>
+            <button
+              className="btn btn-primary"
+              onClick={() => setNoteModal(null)}
+            >
+              Закрыть
+            </button>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }

@@ -8,11 +8,23 @@ export const apiClient = axios.create({
   timeout: 15000,
 });
 
+export class ApiClientError extends Error {
+  constructor(
+    message: string,
+    public readonly details?: unknown,
+  ) {
+    super(message);
+    this.name = "ApiClientError";
+  }
+}
+
 apiClient.interceptors.response.use(
   (response) => response,
-  (error: AxiosError<{ error?: { message?: string } }>) => {
+  (error: AxiosError<{ error?: { message?: string; details?: unknown } }>) => {
     const message =
       error.response?.data?.error?.message ?? error.message ?? "Network error";
-    return Promise.reject(new Error(message));
+    return Promise.reject(
+      new ApiClientError(message, error.response?.data?.error?.details),
+    );
   },
 );
