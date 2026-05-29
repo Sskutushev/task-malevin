@@ -2,6 +2,7 @@ export interface WorkLog {
   id: string;
   date: Date;
   workTypeId: string;
+  workTypeGroup: string;
   workTypeName: string;
   volume: number;
   unit: string;
@@ -15,7 +16,7 @@ export interface CreateWorkLogDto {
   date: string;
   workTypeId: string;
   volume: number;
-  unit: string;
+  unit?: string;
   executorName: string;
   notes?: string;
 }
@@ -25,6 +26,7 @@ export type UpdateWorkLogDto = Partial<CreateWorkLogDto>;
 export interface WorkLogFilters {
   dateFrom?: string;
   dateTo?: string;
+  workTypeGroup?: string;
   workTypeId?: string;
   page: number;
   limit: number;

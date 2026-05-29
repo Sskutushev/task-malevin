@@ -12,6 +12,7 @@ interface WorkLogRow {
   id: string;
   date: Date;
   work_type_id: string;
+  work_type_group: string;
   work_type_name: string;
   volume: string;
   unit: string;
@@ -26,6 +27,7 @@ function toEntity(row: WorkLogRow): WorkLog {
     id: row.id,
     date: new Date(row.date),
     workTypeId: row.work_type_id,
+    workTypeGroup: row.work_type_group,
     workTypeName: row.work_type_name,
     volume: Number(row.volume),
     unit: row.unit,
@@ -59,6 +61,11 @@ export class WorkLogRepository {
       params.push(filters.workTypeId);
       idx += 1;
     }
+    if (filters.workTypeGroup) {
+      where.push(`work_type_group = $${idx}`);
+      params.push(filters.workTypeGroup);
+      idx += 1;
+    }
 
     const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
     const orderBy = filters.sortBy === "createdAt" ? "created_at" : "date";
@@ -71,7 +78,7 @@ export class WorkLogRepository {
       (filters.page - 1) * filters.limit,
     ];
     const listResult = await this.crdb.query<WorkLogRow>(
-      `SELECT id, date, work_type_id, work_type_name, volume, unit, executor_name, notes, created_at, updated_at
+      `SELECT id, date, work_type_id, work_type_group, work_type_name, volume, unit, executor_name, notes, created_at, updated_at
        FROM work_logs
        ${whereSql}
        ORDER BY ${orderBy} ${orderDirection}
@@ -96,7 +103,7 @@ export class WorkLogRepository {
 
   async findById(id: string): Promise<WorkLog | null> {
     const result = await this.crdb.query<WorkLogRow>(
-      `SELECT id, date, work_type_id, work_type_name, volume, unit, executor_name, notes, created_at, updated_at
+      `SELECT id, date, work_type_id, work_type_group, work_type_name, volume, unit, executor_name, notes, created_at, updated_at
        FROM work_logs WHERE id = $1`,
       [id],
     );
@@ -104,18 +111,19 @@ export class WorkLogRepository {
   }
 
   async create(
-    dto: CreateWorkLogDto & { workTypeName: string },
+    dto: CreateWorkLogDto & { workTypeName: string; workTypeGroup: string },
   ): Promise<WorkLog> {
     const id = randomUUID();
     const result = await this.crdb.query<WorkLogRow>(
       `INSERT INTO work_logs
-       (id, date, work_type_id, work_type_name, volume, unit, executor_name, notes, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
-       RETURNING id, date, work_type_id, work_type_name, volume, unit, executor_name, notes, created_at, updated_at`,
+       (id, date, work_type_id, work_type_group, work_type_name, volume, unit, executor_name, notes, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+       RETURNING id, date, work_type_id, work_type_group, work_type_name, volume, unit, executor_name, notes, created_at, updated_at`,
       [
         id,
         dto.date,
         dto.workTypeId,
+        dto.workTypeGroup,
         dto.workTypeName,
         dto.volume,
         dto.unit,
@@ -128,7 +136,7 @@ export class WorkLogRepository {
 
   async update(
     id: string,
-    dto: UpdateWorkLogDto & { workTypeName?: string },
+    dto: UpdateWorkLogDto & { workTypeName?: string; workTypeGroup?: string },
   ): Promise<WorkLog> {
     const existing = await this.findById(id);
     if (!existing) {
@@ -139,18 +147,20 @@ export class WorkLogRepository {
       `UPDATE work_logs SET
         date = $2,
         work_type_id = $3,
-        work_type_name = $4,
-        volume = $5,
-        unit = $6,
-        executor_name = $7,
-        notes = $8,
+        work_type_group = $4,
+        work_type_name = $5,
+        volume = $6,
+        unit = $7,
+        executor_name = $8,
+        notes = $9,
         updated_at = NOW()
        WHERE id = $1
-       RETURNING id, date, work_type_id, work_type_name, volume, unit, executor_name, notes, created_at, updated_at`,
+       RETURNING id, date, work_type_id, work_type_group, work_type_name, volume, unit, executor_name, notes, created_at, updated_at`,
       [
         id,
         dto.date ?? existing.date.toISOString().slice(0, 10),
         dto.workTypeId ?? existing.workTypeId,
+        dto.workTypeGroup ?? existing.workTypeGroup,
         dto.workTypeName ?? existing.workTypeName,
         dto.volume ?? existing.volume,
         dto.unit ?? existing.unit,

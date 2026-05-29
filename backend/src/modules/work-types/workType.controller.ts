@@ -4,8 +4,10 @@ import { WorkTypeService } from "./workType.service";
 import { successResponse } from "../../shared/types/ApiResponse";
 
 const createWorkTypeSchema = z.object({
+  groupName: z.string().trim().min(2).max(100),
   name: z.string().trim().min(2).max(100),
   unit: z.string().trim().min(1).max(20),
+  quantityHint: z.string().trim().min(5).max(200),
 });
 
 export class WorkTypeController {

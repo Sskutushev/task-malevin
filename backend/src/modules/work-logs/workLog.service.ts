@@ -46,6 +46,7 @@ export class WorkLogService {
     const created = await this.repo.create({
       ...dto,
       unit: workType.unit,
+      workTypeGroup: workType.groupName,
       workTypeName: workType.name,
     });
     await this.cache.delByPrefix("work-logs:");
@@ -53,15 +54,25 @@ export class WorkLogService {
   }
 
   async update(id: string, dto: UpdateWorkLogDto): Promise<WorkLog> {
-    let snapshot: { name: string; unit: string } | undefined;
+    let snapshot: { name: string; unit: string; groupName: string } | undefined;
     if (dto.workTypeId) {
       const workType = await this.workTypeRepo.findById(dto.workTypeId);
       if (!workType) throw AppError.notFound("Work type not found");
-      snapshot = { name: workType.name, unit: workType.unit };
+      snapshot = {
+        name: workType.name,
+        unit: workType.unit,
+        groupName: workType.groupName,
+      };
     }
     const updated = await this.repo.update(id, {
       ...dto,
-      ...(snapshot ? { workTypeName: snapshot.name, unit: snapshot.unit } : {}),
+      ...(snapshot
+        ? {
+            workTypeName: snapshot.name,
+            workTypeGroup: snapshot.groupName,
+            unit: snapshot.unit,
+          }
+        : {}),
     });
     await this.cache.delByPrefix("work-logs:");
     return updated;
