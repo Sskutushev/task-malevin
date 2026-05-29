@@ -31,6 +31,12 @@ export function App(): JSX.Element {
     workTypeGroup: string;
     note: string;
   }>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortField, setSortField] = useState<
+    "date" | "workTypeName" | "volume" | "executorName"
+  >("date");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const logsQuery = useQuery({
     queryKey: ["work-logs", dateFrom, dateTo],
@@ -114,6 +120,44 @@ export function App(): JSX.Element {
     return (error as Error).message;
   }, [createMutation.error, createMutation.isError]);
 
+  const displayedItems = useMemo(() => {
+    const items = [...(logsQuery.data?.items ?? [])];
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+
+    const searched = normalizedSearch
+      ? items.filter((item) => {
+          const executor = item.executorName.toLowerCase();
+          const workType = item.workTypeName.toLowerCase();
+          const volume = `${item.volume} ${item.unit}`.toLowerCase();
+          return (
+            executor.includes(normalizedSearch) ||
+            workType.includes(normalizedSearch) ||
+            volume.includes(normalizedSearch)
+          );
+        })
+      : items;
+
+    searched.sort((a, b) => {
+      if (sortField === "date") {
+        const aTime = new Date(a.date).getTime();
+        const bTime = new Date(b.date).getTime();
+        return sortDirection === "asc" ? aTime - bTime : bTime - aTime;
+      }
+      if (sortField === "volume") {
+        return sortDirection === "asc"
+          ? a.volume - b.volume
+          : b.volume - a.volume;
+      }
+      const aVal = (a[sortField] as string).toLowerCase();
+      const bVal = (b[sortField] as string).toLowerCase();
+      return sortDirection === "asc"
+        ? aVal.localeCompare(bVal, "ru")
+        : bVal.localeCompare(aVal, "ru");
+    });
+
+    return searched;
+  }, [logsQuery.data?.items, searchTerm, sortField, sortDirection]);
+
   const setToastMessage = (message: string): void => {
     setToast(message);
     window.setTimeout(() => setToast(""), 2600);
@@ -156,6 +200,42 @@ export function App(): JSX.Element {
     if (hasError) return "select field-error";
     if (hasValue) return "select field-ok";
     return "select";
+  };
+
+  const toggleSort = (
+    field: "date" | "workTypeName" | "volume" | "executorName",
+  ): void => {
+    if (sortField === field) {
+      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortField(field);
+    setSortDirection(field === "date" ? "desc" : "asc");
+  };
+
+  const toggleRow = (id: string): void => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  };
+
+  const toggleAllDisplayed = (): void => {
+    const ids = displayedItems.map((item) => item.id);
+    const allSelected =
+      ids.length > 0 && ids.every((id) => selectedIds.includes(id));
+    if (allSelected) {
+      setSelectedIds((prev) => prev.filter((id) => !ids.includes(id)));
+      return;
+    }
+    setSelectedIds((prev) => Array.from(new Set([...prev, ...ids])));
+  };
+
+  const removeSelected = async (): Promise<void> => {
+    if (selectedIds.length === 0) return;
+    await Promise.all(selectedIds.map((id) => workLogsApi.delete(id)));
+    setSelectedIds([]);
+    await qc.invalidateQueries({ queryKey: ["work-logs"] });
+    setToastMessage("Выбранные записи удалены");
   };
 
   return (
@@ -250,7 +330,15 @@ export function App(): JSX.Element {
 
       <section className="card">
         <h2>Записи</h2>
-        <div className="grid grid-4" style={{ marginBottom: 12 }}>
+        <div style={{ marginBottom: 12 }}>
+          <input
+            className="input"
+            placeholder="Поиск: исполнитель, вид работ, объем"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        <div className="filters-row" style={{ marginBottom: 12 }}>
           <input
             className="input"
             type="date"
@@ -275,58 +363,155 @@ export function App(): JSX.Element {
               </option>
             ))}
           </select>
-          <div />
+          <button
+            className="btn btn-danger bulk-remove-btn"
+            type="button"
+            disabled={selectedIds.length === 0}
+            onClick={removeSelected}
+          >
+            Удалить все выбранные
+          </button>
         </div>
 
         {logsQuery.isLoading ? (
           <p>Загрузка...</p>
         ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Дата</th>
-                <th>Вид работ</th>
-                <th>Объем</th>
-                <th>Исполнитель</th>
-                <th>Примечание</th>
-              </tr>
-            </thead>
-            <tbody>
-              {logsQuery.data?.items.map((item) => (
-                <tr key={item.id}>
-                  <td>{item.date.slice(0, 10)}</td>
-                  <td>{item.workTypeName}</td>
-                  <td>
-                    {item.volume} {item.unit}
-                  </td>
-                  <td>{item.executorName}</td>
-                  <td>
-                    <div className="table-actions-inline">
-                      <button
-                        className="btn btn-secondary"
-                        onClick={() =>
-                          setNoteModal({
-                            date: item.date.slice(0, 10),
-                            workTypeName: item.workTypeName,
-                            workTypeGroup: item.workTypeGroup,
-                            note: item.notes?.trim() || "Примечание отсутствует",
-                          })
-                        }
-                      >
-                        Примечание
-                      </button>
-                      <button
-                        className="btn btn-danger"
-                        onClick={() => deleteMutation.mutate(item.id)}
-                      >
-                        Удалить
-                      </button>
-                    </div>
-                  </td>
+          <div className="records-table-wrap">
+            <table className="records-table">
+              <colgroup>
+                <col style={{ width: "36px" }} />
+                <col style={{ width: "120px" }} />
+                <col />
+                <col style={{ width: "110px" }} />
+                <col style={{ width: "220px" }} />
+                <col style={{ width: "250px" }} />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th className="checkbox-col">
+                    <input
+                      type="checkbox"
+                      checked={
+                        displayedItems.length > 0 &&
+                        displayedItems.every((item) =>
+                          selectedIds.includes(item.id),
+                        )
+                      }
+                      onChange={toggleAllDisplayed}
+                    />
+                  </th>
+                  <th>
+                    <button
+                      className="sort-btn"
+                      type="button"
+                      onClick={() => toggleSort("date")}
+                    >
+                      Дата{" "}
+                      {sortField === "date"
+                        ? sortDirection === "asc"
+                          ? "↑"
+                          : "↓"
+                        : "↕"}
+                    </button>
+                  </th>
+                  <th>
+                    <button
+                      className="sort-btn"
+                      type="button"
+                      onClick={() => toggleSort("workTypeName")}
+                    >
+                      Вид работ{" "}
+                      {sortField === "workTypeName"
+                        ? sortDirection === "asc"
+                          ? "↑"
+                          : "↓"
+                        : "↕"}
+                    </button>
+                  </th>
+                  <th>
+                    <button
+                      className="sort-btn"
+                      type="button"
+                      onClick={() => toggleSort("volume")}
+                    >
+                      Объем{" "}
+                      {sortField === "volume"
+                        ? sortDirection === "asc"
+                          ? "↑"
+                          : "↓"
+                        : "↕"}
+                    </button>
+                  </th>
+                  <th>
+                    <button
+                      className="sort-btn"
+                      type="button"
+                      onClick={() => toggleSort("executorName")}
+                    >
+                      Исполнитель{" "}
+                      {sortField === "executorName"
+                        ? sortDirection === "asc"
+                          ? "↑"
+                          : "↓"
+                        : "↕"}
+                    </button>
+                  </th>
+                  <th>Примечание</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {displayedItems.map((item) => (
+                  <tr key={item.id}>
+                    <td className="checkbox-col">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(item.id)}
+                        onChange={() => toggleRow(item.id)}
+                      />
+                    </td>
+                    <td className="date-col">{item.date.slice(0, 10)}</td>
+                    <td className="work-col">
+                      <span className="truncate-text" title={item.workTypeName}>
+                        {item.workTypeName}
+                      </span>
+                    </td>
+                    <td>
+                      {item.volume} {item.unit}
+                    </td>
+                    <td className="executor-col">
+                      <span className="truncate-text" title={item.executorName}>
+                        {item.executorName}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="table-actions-inline">
+                        <button
+                          className="btn btn-secondary"
+                          onClick={() =>
+                            setNoteModal({
+                              date: item.date.slice(0, 10),
+                              workTypeName: item.workTypeName,
+                              workTypeGroup: item.workTypeGroup,
+                              note:
+                                item.notes?.trim() || "Примечание отсутствует",
+                            })
+                          }
+                        >
+                          Примечание
+                        </button>
+                        <button
+                          className="btn btn-danger"
+                          onClick={() => deleteMutation.mutate(item.id)}
+                        >
+                          Удалить
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
 
@@ -345,7 +530,9 @@ export function App(): JSX.Element {
                 Закрыть
               </button>
             </div>
-            <div className="modal-group-tag">Сегмент: {noteModal.workTypeGroup}</div>
+            <div className="modal-group-tag">
+              Сегмент: {noteModal.workTypeGroup}
+            </div>
             <div className="modal-note-box">
               <p>{noteModal.note}</p>
             </div>

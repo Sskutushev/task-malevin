@@ -7,12 +7,17 @@ body {
   font-family: "Segoe UI", "Noto Sans", sans-serif;
   background: #f4f6f8;
   color: #1f2937;
+  overflow: hidden;
 }
 
 .container {
   max-width: 1080px;
   margin: 0 auto;
-  padding: 24px;
+  padding: 16px 24px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .card {
@@ -20,6 +25,13 @@ body {
   border: 1px solid #e5e7eb;
   border-radius: 12px;
   padding: 16px;
+}
+
+.card:last-of-type {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .grid {
@@ -73,6 +85,11 @@ body {
 .btn-danger {
   background: #b91c1c;
   color: white;
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .fixed-add-btn {
@@ -169,6 +186,7 @@ input[data-role="executor-input"] {
   display: flex;
   align-items: center;
   gap: 8px;
+  justify-content: flex-end;
 }
 
 .toast-message {
@@ -186,13 +204,96 @@ input[data-role="executor-input"] {
 table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.filters-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.bulk-remove-btn {
+  white-space: nowrap;
+}
+
+.sort-btn {
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-weight: 600;
+  color: #1f2937;
+  cursor: pointer;
+  padding: 0;
 }
 
 th,
 td {
   border-bottom: 1px solid #e5e7eb;
-  padding: 10px;
+  padding: 8px 8px;
   text-align: left;
+  vertical-align: middle;
+}
+
+.checkbox-col {
+  width: 36px;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+.date-col {
+  width: 120px;
+  white-space: nowrap;
+}
+
+.work-col,
+.executor-col {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.records-table td:nth-child(5),
+.records-table th:nth-child(5) {
+  padding-right: 4px;
+}
+
+.records-table td:nth-child(6),
+.records-table th:nth-child(6) {
+  padding-left: 4px;
+}
+
+.records-table td:nth-child(4),
+.records-table th:nth-child(4),
+.records-table td:nth-child(5),
+.records-table th:nth-child(5),
+.records-table td:nth-child(6),
+.records-table th:nth-child(6) {
+  text-align: right;
+}
+
+.records-table-wrap {
+  --row-height: 56px;
+  --header-height: 44px;
+  min-height: calc(var(--header-height) + var(--row-height) * 9);
+  max-height: calc(var(--header-height) + var(--row-height) * 9);
+  overflow-y: auto;
+}
+
+.records-table thead th {
+  position: sticky;
+  top: 0;
+  background: #f4f6f8;
+  z-index: 1;
+}
+
+.truncate-text {
+  display: block;
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 @media (max-width: 900px) {
