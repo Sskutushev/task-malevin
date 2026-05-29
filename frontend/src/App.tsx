@@ -68,8 +68,9 @@ export function App(): JSX.Element {
     },
   });
   const {
-    formState: { errors, isSubmitted },
+    formState: { errors, submitCount },
   } = form;
+  const showErrors = submitCount > 0;
 
   const selectedWorkTypeId = useWatch({
     control: form.control,
@@ -116,29 +117,32 @@ export function App(): JSX.Element {
     window.setTimeout(() => setToast(""), 2600);
   };
 
-  const onSubmit = form.handleSubmit(async (values) => {
-    if (!createGroup) {
-      setGroupError(true);
-      setToastMessage("Выберите сегмент работ");
-      return;
-    }
-    await createMutation.mutateAsync({
-      ...values,
-      unit: selectedWorkType?.unit ?? "",
-    });
-    form.reset({
-      date: "",
-      workTypeId: "",
-      volume: 0,
-      executorName: "",
-      notes: "",
-    });
-    setCreateGroup("");
-    setGroupError(false);
-    setToastMessage("Запись успешно добавлена");
-  }, () => {
-    setToastMessage("Заполните обязательные поля");
-  });
+  const onSubmit = form.handleSubmit(
+    async (values) => {
+      if (!createGroup) {
+        setGroupError(true);
+        setToastMessage("Выберите сегмент работ");
+        return;
+      }
+      await createMutation.mutateAsync({
+        ...values,
+        unit: selectedWorkType?.unit ?? "",
+      });
+      form.reset({
+        date: "",
+        workTypeId: "",
+        volume: 0,
+        executorName: "",
+        notes: "",
+      });
+      setCreateGroup("");
+      setGroupError(false);
+      setToastMessage("Запись успешно добавлена");
+    },
+    () => {
+      setToastMessage("Заполните обязательные поля");
+    },
+  );
 
   const inputClass = (hasError: boolean, hasValue: boolean): string => {
     if (hasError) return "input field-error";
@@ -160,17 +164,21 @@ export function App(): JSX.Element {
         <h2>Новая запись</h2>
         <form onSubmit={onSubmit} className="grid grid-4 form-grid">
           <input
-            className={inputClass(!!errors.date && isSubmitted, !!form.watch("date"))}
+            className={inputClass(
+              !!errors.date && showErrors,
+              !!form.watch("date"),
+            )}
             type="date"
             {...form.register("date")}
           />
           <select
-            className={selectClass(groupError && isSubmitted, !!createGroup)}
+            className={selectClass(groupError && showErrors, !!createGroup)}
             value={createGroup}
             onChange={(e) => {
               setCreateGroup(e.target.value);
               setGroupError(false);
               form.setValue("workTypeId", "");
+              form.clearErrors("workTypeId");
             }}
           >
             <option value="">Выберите сегмент работ</option>
@@ -182,7 +190,7 @@ export function App(): JSX.Element {
           </select>
           <select
             className={selectClass(
-              !!errors.workTypeId && isSubmitted,
+              !!errors.workTypeId && showErrors,
               !!form.watch("workTypeId"),
             )}
             {...form.register("workTypeId")}
@@ -196,7 +204,7 @@ export function App(): JSX.Element {
           </select>
           <input
             className={inputClass(
-              !!errors.volume && isSubmitted,
+              !!errors.volume && showErrors,
               Number(form.watch("volume")) > 0,
             )}
             type="number"
@@ -212,15 +220,16 @@ export function App(): JSX.Element {
             placeholder="Примечание"
             {...form.register("notes")}
             style={{ gridColumn: "1 / span 3", gridRow: "2 / span 2" }}
-            rows={3}
+            rows={4}
           />
           <input
             className={inputClass(
-              !!errors.executorName && isSubmitted,
+              !!errors.executorName && showErrors,
               !!form.watch("executorName"),
             )}
             placeholder="Исполнитель"
             {...form.register("executorName")}
+            data-role="executor-input"
             style={{ gridColumn: "4", gridRow: "2" }}
           />
           <button

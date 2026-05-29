@@ -36,18 +36,20 @@ body {
   width: 100%;
   border: 1px solid #d1d5db;
   border-radius: 8px;
-  padding: 10px;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  padding: 10px 12px;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .field-error {
-  border-color: #dc2626;
-  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.12);
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.2) !important;
 }
 
 .field-ok {
-  border-color: #16a34a;
-  box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.1);
+  border-color: #16a34a !important;
+  box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.16) !important;
 }
 
 .btn {
@@ -73,9 +75,9 @@ body {
 }
 
 .fixed-add-btn {
-  width: 220px;
-  height: 48px;
-  justify-self: start;
+  width: 100%;
+  min-height: 46px;
+  justify-self: stretch;
   align-self: start;
 }
 
@@ -85,7 +87,11 @@ body {
 
 .notes-input {
   resize: vertical;
-  min-height: 84px;
+  min-height: 104px;
+}
+
+input[data-role="executor-input"] {
+  min-height: 46px;
 }
 
 .modal-backdrop {
@@ -118,7 +124,7 @@ body {
   padding: 12px 14px;
   border-radius: 10px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-  z-index: 1000;
+  z-index: 9999;
 }
 
 table {
