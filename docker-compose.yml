@@ -1,0 +1,110 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: construction-journal-postgres
+    environment:
+      POSTGRES_DB: construction_journal
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d construction_journal"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  cockroach:
+    image: cockroachdb/cockroach:v24.1.2
+    container_name: construction-journal-cockroach
+    command: start-single-node --insecure --store=attrs=ssd,path=/cockroach/cockroach-data
+    ports:
+      - "26257:26257"
+      - "8081:8080"
+    volumes:
+      - crdb_data:/cockroach/cockroach-data
+    healthcheck:
+      test: ["CMD-SHELL", "cockroach sql --insecure --host=localhost:26257 --execute='SELECT 1'"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    container_name: construction-journal-redis
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  flyway-pg:
+    image: flyway/flyway:10
+    container_name: construction-journal-flyway-pg
+    command: -url=jdbc:postgresql://postgres:5432/construction_journal -user=postgres -password=postgres -connectRetries=60 repair migrate
+    volumes:
+      - ./backend/flyway/pg:/flyway/sql
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  flyway-crdb:
+    image: flyway/flyway:10
+    container_name: construction-journal-flyway-crdb
+    command: -url=jdbc:postgresql://cockroach:26257/defaultdb?sslmode=disable -user=root -connectRetries=60 -schemas=public -defaultSchema=public repair migrate
+    volumes:
+      - ./backend/flyway/crdb:/flyway/sql
+    depends_on:
+      cockroach:
+        condition: service_healthy
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: construction-journal-backend
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/construction_journal?schema=public
+      CRDB_URL: postgresql://root@cockroach:26257/defaultdb?sslmode=disable
+      REDIS_URL: redis://redis:6379
+      CORS_ORIGIN: http://localhost:8080
+      LOG_LEVEL: info
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      cockroach:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      flyway-pg:
+        condition: service_completed_successfully
+      flyway-crdb:
+        condition: service_completed_successfully
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: /api
+    container_name: construction-journal-frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+
+volumes:
+  pg_data:
+  crdb_data:
+  redis_data:
