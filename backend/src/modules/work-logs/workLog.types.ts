@@ -16,7 +16,7 @@ export interface CreateWorkLogDto {
   date: string;
   workTypeId: string;
   volume: number;
-  unit: string;
+  unit?: string;
   executorName: string;
   notes?: string;
 }

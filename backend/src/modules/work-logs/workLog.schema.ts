@@ -6,7 +6,7 @@ export const createWorkLogSchema = z.object({
   date: z.string().regex(ISO_DATE_REGEX),
   workTypeId: z.string().min(1),
   volume: z.coerce.number().positive().max(999999.99),
-  unit: z.string().min(1).max(20),
+  unit: z.string().min(1).max(20).optional(),
   executorName: z.string().trim().min(2).max(200),
   notes: z.string().trim().max(5000).optional(),
 });

@@ -37,6 +37,17 @@ body {
   border: 1px solid #d1d5db;
   border-radius: 8px;
   padding: 10px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.field-error {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.12);
+}
+
+.field-ok {
+  border-color: #16a34a;
+  box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.1);
 }
 
 .btn {
@@ -59,6 +70,17 @@ body {
 .btn-danger {
   background: #b91c1c;
   color: white;
+}
+
+.fixed-add-btn {
+  width: 220px;
+  height: 48px;
+  justify-self: start;
+  align-self: start;
+}
+
+.form-grid {
+  align-items: start;
 }
 
 .notes-input {
@@ -85,6 +107,18 @@ body {
   padding: 20px;
   border: 1px solid #e5e7eb;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+}
+
+.toast-message {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: #111827;
+  color: #ffffff;
+  padding: 12px 14px;
+  border-radius: 10px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
 }
 
 table {

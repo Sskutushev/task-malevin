@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { workLogsApi } from "./api/workLogsApi";
@@ -22,6 +22,9 @@ export function App(): JSX.Element {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [groupFilter, setGroupFilter] = useState("");
+  const [createGroup, setCreateGroup] = useState("");
+  const [groupError, setGroupError] = useState(false);
+  const [toast, setToast] = useState("");
   const [noteModal, setNoteModal] = useState<null | {
     title: string;
     note: string;
@@ -64,10 +67,18 @@ export function App(): JSX.Element {
       notes: "",
     },
   });
+  const {
+    formState: { errors, isSubmitted },
+  } = form;
+
+  const selectedWorkTypeId = useWatch({
+    control: form.control,
+    name: "workTypeId",
+  });
 
   const selectedWorkType = useMemo(
-    () => workTypesQuery.data?.find((x) => x.id === form.watch("workTypeId")),
-    [form, workTypesQuery.data],
+    () => workTypesQuery.data?.find((x) => x.id === selectedWorkTypeId),
+    [selectedWorkTypeId, workTypesQuery.data],
   );
 
   const groups = useMemo(
@@ -86,6 +97,11 @@ export function App(): JSX.Element {
     return map;
   }, [workTypesQuery.data]);
 
+  const createGroupTypes = useMemo(
+    () => groupedWorkTypes.get(createGroup) ?? [],
+    [groupedWorkTypes, createGroup],
+  );
+
   const createError = useMemo(() => {
     if (!createMutation.isError) return "";
     const error = createMutation.error;
@@ -95,7 +111,17 @@ export function App(): JSX.Element {
     return (error as Error).message;
   }, [createMutation.error, createMutation.isError]);
 
+  const setToastMessage = (message: string): void => {
+    setToast(message);
+    window.setTimeout(() => setToast(""), 2600);
+  };
+
   const onSubmit = form.handleSubmit(async (values) => {
+    if (!createGroup) {
+      setGroupError(true);
+      setToastMessage("Выберите сегмент работ");
+      return;
+    }
     await createMutation.mutateAsync({
       ...values,
       unit: selectedWorkType?.unit ?? "",
@@ -107,7 +133,24 @@ export function App(): JSX.Element {
       executorName: "",
       notes: "",
     });
+    setCreateGroup("");
+    setGroupError(false);
+    setToastMessage("Запись успешно добавлена");
+  }, () => {
+    setToastMessage("Заполните обязательные поля");
   });
+
+  const inputClass = (hasError: boolean, hasValue: boolean): string => {
+    if (hasError) return "input field-error";
+    if (hasValue) return "input field-ok";
+    return "input";
+  };
+
+  const selectClass = (hasError: boolean, hasValue: boolean): string => {
+    if (hasError) return "select field-error";
+    if (hasValue) return "select field-ok";
+    return "select";
+  };
 
   return (
     <main className="container">
@@ -115,24 +158,47 @@ export function App(): JSX.Element {
 
       <section className="card" style={{ marginBottom: 16 }}>
         <h2>Новая запись</h2>
-        <form onSubmit={onSubmit} className="grid grid-4">
-          <input className="input" type="date" {...form.register("date")} />
-          <select className="select" {...form.register("workTypeId")}>
-            <option value="">Выберите вид работ</option>
-            {Array.from(groupedWorkTypes.entries()).map(
-              ([groupName, types]) => (
-                <optgroup key={groupName} label={groupName}>
-                  {types?.map((type) => (
-                    <option key={type.id} value={type.id}>
-                      {type.name} ({type.unit})
-                    </option>
-                  ))}
-                </optgroup>
-              ),
+        <form onSubmit={onSubmit} className="grid grid-4 form-grid">
+          <input
+            className={inputClass(!!errors.date && isSubmitted, !!form.watch("date"))}
+            type="date"
+            {...form.register("date")}
+          />
+          <select
+            className={selectClass(groupError && isSubmitted, !!createGroup)}
+            value={createGroup}
+            onChange={(e) => {
+              setCreateGroup(e.target.value);
+              setGroupError(false);
+              form.setValue("workTypeId", "");
+            }}
+          >
+            <option value="">Выберите сегмент работ</option>
+            {groups.map((group) => (
+              <option key={group} value={group}>
+                {group}
+              </option>
+            ))}
+          </select>
+          <select
+            className={selectClass(
+              !!errors.workTypeId && isSubmitted,
+              !!form.watch("workTypeId"),
             )}
+            {...form.register("workTypeId")}
+          >
+            <option value="">Выберите вид работ</option>
+            {createGroupTypes.map((type) => (
+              <option key={type.id} value={type.id}>
+                {type.name} ({type.unit})
+              </option>
+            ))}
           </select>
           <input
-            className="input"
+            className={inputClass(
+              !!errors.volume && isSubmitted,
+              Number(form.watch("volume")) > 0,
+            )}
             type="number"
             step="0.01"
             {...form.register("volume", { valueAsNumber: true })}
@@ -141,22 +207,27 @@ export function App(): JSX.Element {
               "Введите объем выполненных работ"
             }
           />
-          <input
-            className="input"
-            placeholder="Исполнитель"
-            {...form.register("executorName")}
-          />
           <textarea
             className="input notes-input"
             placeholder="Примечание"
             {...form.register("notes")}
-            style={{ gridColumn: "1 / span 3" }}
+            style={{ gridColumn: "1 / span 3", gridRow: "2 / span 2" }}
             rows={3}
           />
+          <input
+            className={inputClass(
+              !!errors.executorName && isSubmitted,
+              !!form.watch("executorName"),
+            )}
+            placeholder="Исполнитель"
+            {...form.register("executorName")}
+            style={{ gridColumn: "4", gridRow: "2" }}
+          />
           <button
-            className="btn btn-primary"
+            className="btn btn-primary fixed-add-btn"
             type="submit"
             disabled={createMutation.isPending}
+            style={{ gridColumn: "4", gridRow: "3" }}
           >
             Добавить
           </button>
@@ -261,6 +332,8 @@ export function App(): JSX.Element {
           </div>
         </div>
       ) : null}
+
+      {toast ? <div className="toast-message">{toast}</div> : null}
     </main>
   );
 }
