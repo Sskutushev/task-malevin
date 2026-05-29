@@ -37,6 +37,7 @@ body {
   border: 1px solid #d1d5db;
   border-radius: 8px;
   padding: 10px 12px;
+  min-height: var(--control-height, 46px);
   transition:
     border-color 0.2s ease,
     box-shadow 0.2s ease;
@@ -76,22 +77,26 @@ body {
 
 .fixed-add-btn {
   width: 100%;
-  min-height: 46px;
+  height: var(--control-height, 46px);
+  min-height: var(--control-height, 46px);
   justify-self: stretch;
   align-self: start;
 }
 
 .form-grid {
+  --control-height: 46px;
+  --form-gap: 12px;
   align-items: start;
 }
 
 .notes-input {
   resize: vertical;
-  min-height: 104px;
+  height: calc(var(--control-height) * 2 + var(--form-gap));
+  min-height: calc(var(--control-height) * 2 + var(--form-gap));
 }
 
 input[data-role="executor-input"] {
-  min-height: 46px;
+  min-height: var(--control-height, 46px);
 }
 
 .modal-backdrop {
@@ -113,6 +118,57 @@ input[data-role="executor-input"] {
   padding: 20px;
   border: 1px solid #e5e7eb;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+}
+
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.modal-subtitle {
+  margin: 4px 0 0;
+  color: #4b5563;
+  font-weight: 600;
+}
+
+.modal-group-tag {
+  display: inline-flex;
+  border: 1px solid #d1d5db;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: #1f2937;
+  background: #f9fafb;
+  margin-bottom: 12px;
+}
+
+.modal-note-box {
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 12px;
+  background: #ffffff;
+  margin-top: 4px;
+}
+
+.modal-note-box p {
+  margin: 0;
+  white-space: pre-wrap;
+  line-height: 1.45;
+}
+
+.table-actions-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .toast-message {

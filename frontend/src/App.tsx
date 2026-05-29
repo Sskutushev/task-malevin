@@ -26,7 +26,9 @@ export function App(): JSX.Element {
   const [groupError, setGroupError] = useState(false);
   const [toast, setToast] = useState("");
   const [noteModal, setNoteModal] = useState<null | {
-    title: string;
+    date: string;
+    workTypeName: string;
+    workTypeGroup: string;
     note: string;
   }>(null);
 
@@ -220,7 +222,7 @@ export function App(): JSX.Element {
             placeholder="Примечание"
             {...form.register("notes")}
             style={{ gridColumn: "1 / span 3", gridRow: "2 / span 2" }}
-            rows={4}
+            rows={1}
           />
           <input
             className={inputClass(
@@ -287,7 +289,6 @@ export function App(): JSX.Element {
                 <th>Объем</th>
                 <th>Исполнитель</th>
                 <th>Примечание</th>
-                <th />
               </tr>
             </thead>
             <tbody>
@@ -300,25 +301,27 @@ export function App(): JSX.Element {
                   </td>
                   <td>{item.executorName}</td>
                   <td>
-                    <button
-                      className="btn btn-secondary"
-                      onClick={() =>
-                        setNoteModal({
-                          title: `${item.workTypeName} - ${item.date.slice(0, 10)}`,
-                          note: item.notes?.trim() || "Примечание отсутствует",
-                        })
-                      }
-                    >
-                      Примечание
-                    </button>
-                  </td>
-                  <td>
-                    <button
-                      className="btn btn-danger"
-                      onClick={() => deleteMutation.mutate(item.id)}
-                    >
-                      Удалить
-                    </button>
+                    <div className="table-actions-inline">
+                      <button
+                        className="btn btn-secondary"
+                        onClick={() =>
+                          setNoteModal({
+                            date: item.date.slice(0, 10),
+                            workTypeName: item.workTypeName,
+                            workTypeGroup: item.workTypeGroup,
+                            note: item.notes?.trim() || "Примечание отсутствует",
+                          })
+                        }
+                      >
+                        Примечание
+                      </button>
+                      <button
+                        className="btn btn-danger"
+                        onClick={() => deleteMutation.mutate(item.id)}
+                      >
+                        Удалить
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -330,14 +333,22 @@ export function App(): JSX.Element {
       {noteModal ? (
         <div className="modal-backdrop" onClick={() => setNoteModal(null)}>
           <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-            <h3>{noteModal.title}</h3>
-            <p>{noteModal.note}</p>
-            <button
-              className="btn btn-primary"
-              onClick={() => setNoteModal(null)}
-            >
-              Закрыть
-            </button>
+            <div className="modal-header">
+              <div>
+                <h3 className="modal-title">{noteModal.workTypeName}</h3>
+                <p className="modal-subtitle">{noteModal.date}</p>
+              </div>
+              <button
+                className="btn btn-primary"
+                onClick={() => setNoteModal(null)}
+              >
+                Закрыть
+              </button>
+            </div>
+            <div className="modal-group-tag">Сегмент: {noteModal.workTypeGroup}</div>
+            <div className="modal-note-box">
+              <p>{noteModal.note}</p>
+            </div>
           </div>
         </div>
       ) : null}
